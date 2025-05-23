@@ -1,0 +1,49 @@
+{
+  "openaiApiKey": "your-api-key-here",
+  "apiBaseUrl": "http://127.0.0.1:8000",
+  "mcpServers": {
+    "learning-mcp-server": {
+      "command": "uv",
+      "args": ["run", "mcp_server.py"],
+      "cwd": "/absolute/path/to/mcp_test",
+      "description": "学习用 MCP 服务器，提供文件操作、系统信息和分析工具"
+    }
+  },
+  "maxRequestsPerTask": 50,
+  "customInstructions": "使用 MCP 服务器的工具来帮助我学习和理解代码。当需要读取文件或获取系统信息时，请使用提供的工具。",
+  "alwaysAllowReadOnly": true,
+  "explanation": {
+    "注意事项": [
+      "将 'your-api-key-here' 替换为你的实际 API 密钥",
+      "将 '/absolute/path/to/mcp_test' 替换为项目的绝对路径",
+      "apiBaseUrl 指向本地代理服务器，用于拦截和记录 API 交互",
+      "确保代理服务器在 127.0.0.1:8000 上运行",
+      "MCP 服务器将记录所有工具调用和资源访问",
+      "使用 uv 管理 Python 环境和依赖"
+    ],
+    "可用工具": [
+      "read_file - 读取文件内容",
+      "write_file - 写入文件内容", 
+      "list_directory - 列出目录内容",
+      "get_system_info - 获取系统信息",
+      "calculate - 执行数学计算"
+    ],
+    "可用资源": [
+      "file://README.md - 项目说明文档",
+      "config://server-info - 服务器信息",
+      "log://interactions - 交互日志"
+    ],
+    "提示模板": [
+      "analyze_code - 代码分析",
+      "file_summary - 文件摘要",
+      "debug_help - 调试帮助"
+    ],
+    "替代配置方式": {
+      "使用绝对路径": {
+        "command": "uv",
+        "args": ["--directory", "/absolute/path/to/mcp_test", "run", "mcp_server.py"]
+      },
+      "说明": "如果不设置 cwd，可以使用 --directory 参数指定项目路径"
+    }
+  }
+} 

@@ -16,11 +16,18 @@ from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response, StreamResponse
 import argparse
 
+from config import get_config
+
 
 class OpenAIProxy:
-    def __init__(self, target_url: str = "https://api.openai.com", log_file: str = "openai_interactions.jsonl"):
-        self.target_url = target_url.rstrip('/')
-        self.log_file = log_file
+    def __init__(self, target_url: Optional[str] = None, log_file: Optional[str] = None):
+        # 获取配置
+        config = get_config()
+        
+        # 使用配置文件中的值，如果没有提供参数的话
+        self.target_url = (target_url or config.get('openai.base_url', 'https://api.openai.com')).rstrip('/')
+        self.log_file = log_file or config.get('logging.interactions_file', 'openai_interactions.jsonl')
+        
         self.setup_logging()
         
     def setup_logging(self):
@@ -171,15 +178,26 @@ class OpenAIProxy:
 
 
 async def main():
+    # 获取配置
+    config = get_config()
+    server_config = config.get_server_config()
+    
     parser = argparse.ArgumentParser(description='OpenAI API 代理服务器')
-    parser.add_argument('--host', default='127.0.0.1', help='监听主机 (默认: 127.0.0.1)')
-    parser.add_argument('--port', type=int, default=8000, help='监听端口 (默认: 8000)')
-    parser.add_argument('--target', default='https://api.openai.com', 
-                       help='目标 API URL (默认: https://api.openai.com)')
-    parser.add_argument('--log-file', default='openai_interactions.jsonl',
-                       help='日志文件路径 (默认: openai_interactions.jsonl)')
+    parser.add_argument('--host', default=server_config.get('host', '127.0.0.1'), 
+                       help='监听主机 (默认: 从配置文件读取)')
+    parser.add_argument('--port', type=int, default=server_config.get('port', 8000), 
+                       help='监听端口 (默认: 从配置文件读取)')
+    parser.add_argument('--target', default=config.get('openai.base_url', 'https://api.openai.com'), 
+                       help='目标 API URL (默认: 从配置文件读取)')
+    parser.add_argument('--log-file', default=config.get('logging.interactions_file', 'openai_interactions.jsonl'),
+                       help='日志文件路径 (默认: 从配置文件读取)')
     
     args = parser.parse_args()
+    
+    # 验证配置
+    if not config.validate_config():
+        print("❌ 配置验证失败，请检查配置文件")
+        return
     
     # 创建代理服务器
     proxy = OpenAIProxy(target_url=args.target, log_file=args.log_file)

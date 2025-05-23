@@ -16,6 +16,48 @@
 - 提供多种工具和资源
 - 记录 MCP 协议的交互过程
 
+## 🔐 配置管理
+
+本项目支持安全的配置管理，敏感信息（如 API Key）不会提交到 Git 仓库。
+
+### 配置方式
+
+项目支持三种配置方式（优先级从高到低）：
+
+1. **环境变量** - 最高优先级
+2. **配置文件** (`config.json`) - 中等优先级  
+3. **默认值** - 最低优先级
+
+### 快速配置
+
+```bash
+# 使用配置向导（推荐）
+uv run setup_config.py
+
+# 或者手动复制配置文件
+cp config.example.json config.json
+# 然后编辑 config.json 填入真实的 API Key
+```
+
+### 环境变量配置
+
+```bash
+# 复制环境变量模板
+cp env.example .env
+# 编辑 .env 文件填入真实配置
+
+# 或者直接设置环境变量
+export OPENAI_API_KEY="your-real-api-key"
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+```
+
+### 配置文件说明
+
+- `config.example.json` - 配置模板（会提交到 Git）
+- `config.json` - 实际配置文件（不会提交到 Git）
+- `env.example` - 环境变量模板（会提交到 Git）
+- `.env` - 实际环境变量文件（不会提交到 Git）
+
 ## 🚀 快速开始
 
 ### 安装 uv（如果尚未安装）
@@ -35,10 +77,13 @@ pip install uv
 
 ```bash
 # 克隆或进入项目目录
-cd mcp_test
+cd learn_mcp_log
 
 # 使用 uv 安装依赖
 uv sync
+
+# 配置项目（设置 API Key 等）
+uv run setup_config.py
 ```
 
 ### 使用方法

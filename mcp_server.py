@@ -14,13 +14,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
+from config import get_config
 
 
 class MCPLogger:
     """MCP 交互日志记录器"""
 
-    def __init__(self, log_file: str = "mcp_interactions.jsonl"):
-        self.log_file = log_file
+    def __init__(self, log_file: Optional[str] = None):
+        # 获取配置
+        config = get_config()
+        logging_config = config.get_logging_config()
+        
+        self.log_file = log_file or logging_config.get('interactions_file', 'mcp_interactions.jsonl')
         self.setup_logging()
 
     def setup_logging(self):

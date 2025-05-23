@@ -1,0 +1,23 @@
+{
+  "openai": {
+    "api_key": "your-openai-api-key-here",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-4"
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "debug": false
+  },
+  "mcp": {
+    "server_name": "learning-mcp-server",
+    "server_version": "1.0.0",
+    "log_level": "INFO"
+  },
+  "logging": {
+    "log_file": "mcp_server.log",
+    "interactions_file": "mcp_interactions.jsonl",
+    "max_log_size_mb": 10,
+    "backup_count": 5
+  }
+} 

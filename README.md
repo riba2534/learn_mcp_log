@@ -1,8 +1,8 @@
-# 🧠 Cline 和大模型交互学习工具
+# 🧠 AI 编程助手交互学习工具
 
 <div align="center">
 
-一个专为学习和分析 **Cline** 与大模型 API 以及 **MCP (Model Context Protocol)** 服务器交互过程而设计的完整工具集。
+一个专为学习和分析 **AI 编程助手**与大模型 API 以及 **MCP (Model Context Protocol)** 服务器交互过程而设计的通用工具集。
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io)
@@ -12,18 +12,18 @@
 
 ## 🎯 项目简介
 
-这个项目通过两个核心组件帮助开发者深入理解现代 AI 编程助手的工作原理：
+这个项目通过两个核心组件帮助开发者深入理解现代 AI 编程助手的工作原理，支持 **Cline**、**Continue**、**Cursor** 等各种 AI 编程工具：
 
 ### 🔄 OpenAI API 代理服务器
-- **透明代理**：拦截 Cline 发送给大模型的所有 API 请求
+- **通用代理**：拦截任何应用程序发送给大模型的 API 请求
 - **完整记录**：捕获请求/响应的完整内容，包括 headers、payload、响应时间
-- **实时转发**：无缝转发到真实的 API 端点，不影响正常使用
+- **透明转发**：无缝转发到真实的 API 端点，不影响正常使用
 - **多格式支持**：支持流式和非流式响应，兼容各种大模型 API
 
 ### 🛠️ MCP 学习服务器
-- **协议实现**：完整实现 Model Context Protocol 规范
+- **标准实现**：完整实现 Model Context Protocol 规范
+- **通用兼容**：支持任何 MCP 客户端连接
 - **工具演示**：提供文件操作、系统查询等实用工具
-- **资源管理**：展示资源访问和管理机制
 - **交互记录**：详细记录 MCP 协议的所有交互过程
 
 ## 🌟 核心价值
@@ -32,6 +32,7 @@
 - **📊 数据分析**：分析 API 调用模式、Token 使用、响应时间等关键指标
 - **🧪 协议研究**：深入了解 MCP 协议的设计和实现细节
 - **🔧 开发调试**：为开发自己的 AI 工具提供参考和调试基础
+- **🌐 通用支持**：适用于各种 AI 编程助手和开发工具
 
 ## 🚀 快速开始
 
@@ -116,18 +117,54 @@ uv run openai_proxy.py --host 127.0.0.1 --port 8000  # API 代理
 uv run mcp_server.py                                   # MCP 服务器
 ```
 
-## 🔧 配置 Cline
+## 🔧 配置 AI 编程助手
 
 ### API 代理配置
 
-在 Cline 的设置中：
+这个代理服务器可以与任何支持自定义 API 端点的 AI 编程工具配合使用：
 
+#### 🔹 Cline (Claude Dev)
+
+在 Cline 的设置中：
 1. 打开 Cline 扩展设置
 2. 找到 **API 配置** 部分
 3. 将 **Base URL** 设置为：`http://127.0.0.1:8000`
 4. 输入你的 API Key（会通过代理转发）
 
+#### 🔹 Continue
+
+在 `~/.continue/config.json` 中配置：
+
+```json
+{
+  "models": [
+    {
+      "title": "GPT-4 (via proxy)",
+      "provider": "openai",
+      "model": "gpt-4",
+      "apiKey": "your-api-key",
+      "apiBase": "http://127.0.0.1:8000"
+    }
+  ]
+}
+```
+
+#### 🔹 Cursor
+
+在 Cursor 的设置中：
+1. 打开设置 → AI → OpenAI API
+2. 设置 **Base URL** 为：`http://127.0.0.1:8000`
+3. 输入你的 API Key
+
+#### 🔹 其他工具
+
+任何支持自定义 OpenAI API 端点的工具都可以使用，只需将 API 端点设置为 `http://127.0.0.1:8000`
+
 ### MCP 服务器配置
+
+这个 MCP 服务器兼容任何支持 MCP 协议的客户端：
+
+#### 🔹 Cline
 
 在 Cline 的 MCP 配置中添加：
 
@@ -143,26 +180,32 @@ uv run mcp_server.py                                   # MCP 服务器
 }
 ```
 
-或者使用绝对路径：
+#### 🔹 Claude Desktop
+
+在 `claude_desktop_config.json` 中配置：
 
 ```json
 {
   "mcpServers": {
     "learning-mcp-server": {
       "command": "uv",
-      "args": ["--directory", "/absolute/path/to/learn_mcp_log", "run", "mcp_server.py"]
+      "args": ["--directory", "/path/to/learn_mcp_log", "run", "mcp_server.py"]
     }
   }
 }
 ```
 
+#### 🔹 其他 MCP 客户端
+
+任何标准的 MCP 客户端都可以连接到这个服务器，只需配置正确的启动命令。
+
 ## 📋 使用指南
 
 ### 基本使用流程
 
-1. **启动服务器**：运行 API 代理和 MCP 服务器
-2. **配置 Cline**：将 Cline 连接到你的本地服务器
-3. **正常使用**：像平常一样使用 Cline 进行编程
+1. **启动服务器**：运行 API 代理和/或 MCP 服务器
+2. **配置工具**：将你的 AI 编程助手连接到本地服务器
+3. **正常使用**：像平常一样使用你的 AI 编程工具
 4. **查看日志**：分析生成的交互记录
 
 ### 实时监控
@@ -292,18 +335,35 @@ tail -f mcp_server.log
 
 ### 使用示例
 
-在 Cline 中，你可以这样使用 MCP 工具：
+在任何支持 MCP 的 AI 编程助手中，你都可以这样使用工具：
 
 ```
-# 让 Cline 读取文件
+# 让 AI 助手读取文件
 "请读取 src/main.py 文件的内容"
 
-# 让 Cline 获取系统信息  
+# 让 AI 助手获取系统信息  
 "获取当前系统的基本信息"
 
-# 让 Cline 执行计算
+# 让 AI 助手执行计算
 "计算 (25 + 30) * 1.2 的结果"
 ```
+
+## 🎯 支持的工具
+
+### ✅ 已测试支持
+
+| 工具 | API 代理 | MCP 服务器 | 备注 |
+|------|---------|-----------|------|
+| **Cline** | ✅ | ✅ | 完全支持 |
+| **Continue** | ✅ | ⚠️ | API 代理支持，MCP 支持计划中 |
+| **Cursor** | ✅ | ❌ | 仅 API 代理 |
+| **Claude Desktop** | ❌ | ✅ | 仅 MCP 服务器 |
+
+### 🔄 理论支持
+
+任何支持以下特性的工具都应该可以使用：
+- **API 代理**：支持自定义 OpenAI API 端点
+- **MCP 服务器**：支持 Model Context Protocol
 
 ## 📈 学习路径
 
@@ -312,7 +372,7 @@ tail -f mcp_server.log
 1. **基础设置**
    - 完成环境配置
    - 启动服务器
-   - 配置 Cline
+   - 配置你常用的 AI 编程工具
 
 2. **基本观察**
    - 发送简单的代码问题
@@ -327,9 +387,9 @@ tail -f mcp_server.log
 ### 🚀 进阶学习
 
 1. **深度分析**
-   - 分析不同类型请求的模式
+   - 分析不同工具的请求模式
    - 研究 Token 使用情况
-   - 优化 Prompt 效果
+   - 对比不同 AI 助手的行为差异
 
 2. **协议研究**
    - 深入 MCP 协议规范
@@ -380,7 +440,7 @@ echo $OPENAI_API_KEY
 #### ❓ MCP 服务器连接失败
 
 1. 确保 MCP 服务器正在运行
-2. 检查 Cline 配置中的路径是否正确
+2. 检查客户端配置中的路径是否正确
 3. 查看 `mcp_server.log` 获取详细错误信息
 
 #### ❓ 代理服务器无法访问
@@ -456,6 +516,7 @@ uv run pytest
 - [Model Context Protocol 官方文档](https://modelcontextprotocol.io)
 - [OpenAI API 文档](https://platform.openai.com/docs)
 - [Cline 扩展](https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev)
+- [Continue 文档](https://docs.continue.dev)
 - [uv 包管理器](https://docs.astral.sh/uv/)
 
 ## 📄 许可证

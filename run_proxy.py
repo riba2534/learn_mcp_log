@@ -30,12 +30,12 @@ if __name__ == "__main__":
     # 设置环境变量
     os.environ["TARGET_BASE_URL"] = args.target_url
     
-    print("🚀 启动 LLM 代理服务...")
-    print(f"📡 代理地址: http://localhost:{args.port}")
-    print(f"🎯 目标 API: {args.target_url}")
-    print("\n💡 使用方法:")
-    print(f"   在客户端设置 API Base URL 为: http://localhost:{args.port}/v1")
-    print("   保持 API Key 不变\n")
+    print("🚀 启动 LLM 代理服务...", flush=True)
+    print(f"📡 代理地址: http://localhost:{args.port}", flush=True)
+    print(f"🎯 目标 API: {args.target_url}", flush=True)
+    print("\n💡 使用方法:", flush=True)
+    print(f"   在客户端设置 API Base URL 为: http://localhost:{args.port}/v1", flush=True)
+    print("   保持 API Key 不变\n", flush=True)
     
     uvicorn.run(
         app,

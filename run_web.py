@@ -22,12 +22,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     
-    print("🌐 启动 Web 界面服务...")
-    print(f"🔗 访问地址: http://localhost:{args.port}")
-    print("\n📊 功能说明:")
-    print("   - 查看 LLM API 交互记录")
-    print("   - 查看 MCP 服务交互记录")
-    print("   - 实时更新，自动刷新\n")
+    print("🌐 启动 Web 界面服务...", flush=True)
+    print(f"🔗 访问地址: http://localhost:{args.port}", flush=True)
+    print("\n📊 功能说明:", flush=True)
+    print("   - 查看 LLM API 交互记录", flush=True)
+    print("   - 查看 MCP 服务交互记录", flush=True)
+    print("   - 实时更新，自动刷新\n", flush=True)
     
     uvicorn.run(
         app,

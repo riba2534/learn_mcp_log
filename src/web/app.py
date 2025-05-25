@@ -191,6 +191,7 @@ class WebApp:
             "conversation": [],
             "model_info": {},
             "streaming_info": {},
+            "response_content": {},
             "error_info": {}
         }
         
@@ -229,33 +230,66 @@ class WebApp:
         if data.get("response_status"):
             parsed["response_info"]["status"] = data["response_status"]
             parsed["response_info"]["headers"] = data.get("response_headers", {})
+            
+            # 解析响应体（如果有）
+            if data.get("response_body"):
+                parsed["response_content"]["body"] = data["response_body"]
         
         # 解析流式响应
         if data.get("response_chunks"):
-            chunks = data["response_chunks"]
+            chunks_raw = data["response_chunks"]
+            
+            # 处理 response_chunks，可能是单个字符串或字符串数组
+            if isinstance(chunks_raw, list):
+                chunks_text = "\n".join(chunks_raw)
+            else:
+                chunks_text = chunks_raw
+            
+            # 按行分割流式响应
+            lines = chunks_text.split('\n')
+            data_lines = [line for line in lines if line.startswith("data: ") and not line.startswith("data: [DONE]")]
+            
+
+            
             parsed["streaming_info"] = {
-                "total_chunks": len(chunks),
-                "first_chunk_time": "处理中..." if chunks else "无",
-                "last_chunk_time": "处理中..." if chunks else "无",
+                "total_chunks": len(data_lines),
+                "first_chunk_time": "处理中..." if data_lines else "无",
+                "last_chunk_time": "处理中..." if data_lines else "无",
                 "total_content_length": 0
             }
             
             # 提取实际内容
             content_parts = []
-            for chunk in chunks:
-                if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
-                    try:
-                        chunk_data = json.loads(chunk[6:])  # 去掉 "data: " 前缀
-                        if "choices" in chunk_data and chunk_data["choices"]:
-                            delta = chunk_data["choices"][0].get("delta", {})
+            usage_info = None
+            
+            for line in data_lines:
+                try:
+                    chunk_data = json.loads(line[6:])  # 去掉 "data: " 前缀
+                    if "choices" in chunk_data and chunk_data["choices"]:
+                        choice = chunk_data["choices"][0]
+                        if "delta" in choice:
+                            delta = choice["delta"]
                             if "content" in delta and delta["content"]:
                                 content_parts.append(delta["content"])
-                    except:
-                        continue
+                    
+                    # 提取使用情况信息
+                    if "usage" in chunk_data:
+                        usage_info = chunk_data["usage"]
+                except Exception as e:
+                    # 如果解析失败，跳过这一行
+                    continue
             
             full_content = "".join(content_parts)
             parsed["streaming_info"]["total_content_length"] = len(full_content)
             parsed["streaming_info"]["generated_content"] = full_content  # 显示完整生成内容
+            
+            # 将生成的内容也存储到响应内容中
+            parsed["response_content"]["generated_text"] = full_content
+            parsed["response_content"]["chunks_count"] = len(data_lines)
+            
+            # 如果在上面的循环中找到了使用情况信息，则添加到响应内容中
+            if usage_info:
+                parsed["response_content"]["usage"] = usage_info
         
         # 解析模型信息
         if data.get("body", {}).get("model"):

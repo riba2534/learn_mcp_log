@@ -79,6 +79,7 @@ function getLogPreview(log) {
     let preview = '<div class="log-details">';
     
     if (log.type === 'llm') {
+        // 请求信息
         if (log.details.body) {
             if (log.details.body.messages) {
                 const lastMessage = log.details.body.messages[log.details.body.messages.length - 1];
@@ -86,16 +87,49 @@ function getLogPreview(log) {
                     const content = typeof lastMessage.content === 'string' 
                         ? lastMessage.content 
                         : JSON.stringify(lastMessage.content);
-                    preview += `消息: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}`;
+                    preview += `<span class="preview-request">📤 ${content.substring(0, 80)}${content.length > 80 ? '...' : ''}</span>`;
                 }
             }
         }
+        
+        // 响应信息
+        let responsePreview = '';
+        if (log.details.response_chunks) {
+            // 从流式响应中提取内容
+            let generatedContent = '';
+            for (const chunk of log.details.response_chunks) {
+                if (chunk.startsWith("data: ") && !chunk.startsWith("data: [DONE]")) {
+                    try {
+                        const chunkData = JSON.parse(chunk.substring(6));
+                        if (chunkData.choices && chunkData.choices[0] && chunkData.choices[0].delta && chunkData.choices[0].delta.content) {
+                            generatedContent += chunkData.choices[0].delta.content;
+                        }
+                    } catch (e) {
+                        // 忽略解析错误
+                    }
+                }
+            }
+            if (generatedContent) {
+                responsePreview = `<span class="preview-response">📥 ${generatedContent.substring(0, 80)}${generatedContent.length > 80 ? '...' : ''}</span>`;
+            }
+        }
+        
+        if (responsePreview) {
+            preview += '<br>' + responsePreview;
+        }
+        
+        // 状态和耗时
+        let statusInfo = '';
         if (log.details.response_status) {
-            preview += ` | 状态: ${log.details.response_status}`;
+            statusInfo += ` | 状态: <span class="${getStatusClass(log.details.response_status)}">${log.details.response_status}</span>`;
         }
         if (log.details.duration_ms) {
-            preview += ` | 耗时: ${log.details.duration_ms.toFixed(0)}ms`;
+            statusInfo += ` | 耗时: ${log.details.duration_ms.toFixed(0)}ms`;
         }
+        if (statusInfo) {
+            preview += '<br><span class="preview-meta">' + statusInfo.substring(3) + '</span>';
+        }
+        
     } else if (log.type === 'mcp') {
         const request = log.details.request;
         if (request.method) {
@@ -279,19 +313,23 @@ function renderLLMParsedContent(data) {
         `;
     }
     
-    // 对话内容
+    // 对话内容 - 请求部分
     if (data.conversation && data.conversation.length > 0) {
         html += `
-            <div class="parsed-section">
-                <h3>对话内容</h3>
+            <div class="parsed-section request-section">
+                <h3>📤 请求内容 - 对话历史</h3>
         `;
         
-        data.conversation.forEach(msg => {
+        data.conversation.forEach((msg, index) => {
+            const isLastMessage = index === data.conversation.length - 1;
             html += `
-                <div class="conversation-item ${msg.role}">
-                    <div class="conversation-role">${getRoleDisplayName(msg.role)}</div>
-                    <div class="conversation-content">${msg.content}</div>
-                    <div class="content-length">内容长度: ${msg.content_length} 字符</div>
+                <div class="conversation-item ${msg.role} ${isLastMessage ? 'latest-message' : ''}">
+                    <div class="conversation-header">
+                        <div class="conversation-role">${getRoleDisplayName(msg.role)}</div>
+                        <div class="content-length">${msg.content_length} 字符</div>
+                        ${isLastMessage ? '<span class="latest-badge">最新</span>' : ''}
+                    </div>
+                    <div class="conversation-content">${escapeHtml(msg.content)}</div>
                 </div>
             `;
         });
@@ -299,28 +337,86 @@ function renderLLMParsedContent(data) {
         html += '</div>';
     }
     
-    // 流式响应信息
-    if (data.streaming_info && data.streaming_info.total_chunks > 0) {
+    // 响应内容信息
+    if (data.response_content) {
         html += `
-            <div class="parsed-section">
-                <h3>流式响应信息</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">数据块数量</div>
-                        <div class="info-value">${data.streaming_info.total_chunks}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">生成内容长度</div>
-                        <div class="info-value">${data.streaming_info.total_content_length} 字符</div>
-                    </div>
-                </div>
+            <div class="parsed-section response-section">
+                <h3>🔄 响应内容</h3>
         `;
         
-        if (data.streaming_info.generated_content) {
+        // 响应状态和基本信息
+        if (data.response_info && data.response_info.status) {
             html += `
-                <div class="generated-content">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">响应状态</div>
+                        <div class="info-value ${getStatusClass(data.response_info.status)}">${data.response_info.status}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">响应时间</div>
+                        <div class="info-value">${data.basic_info.duration_ms ? Math.round(data.basic_info.duration_ms) + 'ms' : '未知'}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 生成的文本内容
+        if (data.response_content.generated_text) {
+            html += `
+                <div class="response-content-section">
                     <div class="info-label">生成的内容:</div>
-                    <pre>${data.streaming_info.generated_content}</pre>
+                    <div class="generated-content-box">
+                        <pre>${escapeHtml(data.response_content.generated_text)}</pre>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 使用情况统计
+        if (data.response_content.usage) {
+            const usage = data.response_content.usage;
+            html += `
+                <div class="usage-info">
+                    <div class="info-label">Token 使用情况:</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">输入 Token</div>
+                            <div class="info-value">${usage.prompt_tokens || 0}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">输出 Token</div>
+                            <div class="info-value">${usage.completion_tokens || 0}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">总计 Token</div>
+                            <div class="info-value">${usage.total_tokens || 0}</div>
+                        </div>
+                        ${usage.cost ? `
+                        <div class="info-item">
+                            <div class="info-label">费用</div>
+                            <div class="info-value">$${usage.cost.toFixed(6)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 流式响应技术信息
+        if (data.streaming_info && data.streaming_info.total_chunks > 0) {
+            html += `
+                <div class="streaming-details">
+                    <div class="info-label">流式响应详情:</div>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">数据块数量</div>
+                            <div class="info-value">${data.streaming_info.total_chunks}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">内容长度</div>
+                            <div class="info-value">${data.streaming_info.total_content_length} 字符</div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -451,6 +547,12 @@ function renderMCPParsedContent(data) {
 }
 
 // 辅助函数
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function getStatusClass(status) {
     if (status >= 200 && status < 300) return 'success';
     if (status >= 400) return 'error';

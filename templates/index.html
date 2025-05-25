@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Proxy Logger - 交互数据查看器</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MCP Proxy Logger</h1>
+            <p>查看客户端与大模型 API、MCP 服务的交互数据</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('llm')">LLM API 交互</button>
+                <button class="tab-button" onclick="switchTab('mcp')">MCP 服务交互</button>
+            </div>
+            
+            <div id="llm-content" class="tab-content active">
+                <h2>客户端 → 大模型 API 交互记录</h2>
+                <div class="log-list" id="llm-logs">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+            
+            <div id="mcp-content" class="tab-content">
+                <h2>客户端 → MCP 服务交互记录</h2>
+                <div class="log-list" id="mcp-logs">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 详情模态框 -->
+        <div id="detail-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 id="modal-title">交互详情</h2>
+                <div id="modal-body">
+                    <div class="detail-section">
+                        <h3>请求信息</h3>
+                        <pre id="request-data"></pre>
+                    </div>
+                    <div class="detail-section">
+                        <h3>响应信息</h3>
+                        <pre id="response-data"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html> 

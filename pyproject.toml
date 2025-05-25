@@ -1,25 +1,17 @@
 [project]
-name = "mcp-test"
-version = "1.0.0"
-description = "Cline 和大模型交互学习工具"
-requires-python = ">=3.10"
+name = "mcp-proxy-logger"
+version = "0.1.0"
+description = "A middleware proxy for learning and understanding LLM API and MCP protocol interactions"
+readme = "README.md"
+requires-python = ">=3.13"
 dependencies = [
-    "aiohttp>=3.8.0",
-    "mcp>=1.0.0",
-    "psutil>=7.0.0",
+    "aiofiles>=24.1.0",
+    "fastapi>=0.115.12",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "openai>=1.82.0",
+    "pydantic>=2.11.5",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.34.2",
+    "websockets>=15.0.1",
 ]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "black>=22.0.0",
-    "isort>=5.10.0",
-]
-
-[tool.black]
-line-length = 100
-target-version = ["py310"]
-
-[tool.isort]
-profile = "black"
-line_length = 100 

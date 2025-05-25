@@ -19,8 +19,8 @@
 - 自动记录所有交互数据为 JSON 格式
 
 ### 2. MCP 协议服务
-- 实现标准 MCP 协议的天气查询服务
-- 提供 `get_weather` 和 `get_forecast` 两个示例工具
+- 实现标准 MCP 协议的加法计算服务
+- 提供 `add` 和 `add_with_history` 两个示例工具
 - 使用 **SSE 模式**：通过 HTTP/SSE 通信，提供 REST API 接口
 - 记录所有 JSON-RPC 消息交互
 
@@ -33,7 +33,7 @@
 ## 📦 安装
 
 ### 前置要求
-- Python 3.11+
+- Python 3.13+
 - [uv](https://github.com/astral-sh/uv) 包管理工具
 
 ### 安装步骤
@@ -41,7 +41,7 @@
 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd mcp-proxy-logger
+cd learn_mcp_log
 ```
 
 2. 安装 uv（如果尚未安装）
@@ -90,8 +90,8 @@ make run-proxy
 # 仅启动 Web 界面
 make run-web
 
-# 仅启动 MCP SSE 服务器
-make run-mcp-sse
+# 仅启动 Addition MCP 服务器
+make run-addition-server
 
 # 开发模式（前台运行，显示日志）
 make dev
@@ -101,7 +101,7 @@ make dev
 
 ```bash
 # 使用自定义端口
-make run PROXY_PORT=8001 WEB_PORT=8081
+make run PROXY_PORT=8001 WEB_PORT=8081 ADDITION_SERVER_PORT=8003
 
 # 使用环境变量
 export TARGET_URL=https://api.openai.com
@@ -110,36 +110,20 @@ make run
 
 ### MCP 服务
 
-#### SSE 模式（HTTP API）
+#### Addition Server（加法计算服务）
 
 ```bash
-# 启动 SSE 模式服务器
-make run-mcp-sse
+# 启动 Addition MCP 服务器
+make run-addition-server
 
 # 或直接运行
-uv run python run_mcp_sse.py --port 8001
+uv run python src/mcp/addition_server.py --port 8002
 ```
 
-SSE 模式提供以下 HTTP 端点：
-- `GET /` - 服务器信息
-- `GET /health` - 健康检查
-- `GET /sse` - SSE 连接端点
-- `POST /message` - 发送 MCP 消息
-- `GET /sessions` - 查看所有会话
-
-测试 SSE 模式：
-```bash
-# 使用 curl 测试服务器信息
-curl http://localhost:8001/
-
-# 测试健康检查
-curl http://localhost:8001/health
-
-# 发送 MCP 消息
-curl -X POST http://localhost:8001/message \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
-```
+Addition MCP 服务器提供以下工具：
+- `add(a, b)` - 计算两个数字的和
+- `add_with_history(a, b)` - 计算两个数字的和并记录历史
+- `get_last_calculation()` - 获取最后一次计算结果（资源）
 
 ## 📖 使用指南
 
@@ -197,7 +181,7 @@ curl http://localhost:8000/v1/chat/completions \
 
 2. **查看日志文件**
    - LLM 代理日志：`logs/llm_proxy/*.json`
-   - MCP 服务日志：`logs/mcp_weather/*.jsonl`
+   - MCP 服务日志：`logs/mcp_server/*.jsonl`
 
 ## 🧪 测试
 
@@ -224,12 +208,12 @@ curl http://localhost:8000/v1/chat/completions \
 ## 📁 项目结构
 
 ```
-mcp-proxy-logger/
+learn_mcp_log/
 ├── src/
 │   ├── proxy/
 │   │   └── llm_proxy.py      # LLM API 代理实现
 │   ├── mcp/
-│   │   └── weather_server_sse.py # MCP 天气服务实现 (SSE 模式)
+│   │   └── addition_server.py # MCP 加法计算服务实现
 │   └── web/
 │       └── app.py            # Web 界面后端
 ├── templates/
@@ -241,10 +225,9 @@ mcp-proxy-logger/
 │       └── app.js            # 前端交互逻辑
 ├── logs/                     # 日志存储目录（自动创建）
 │   ├── llm_proxy/           # LLM 交互日志
-│   └── mcp_weather/         # MCP 交互日志
+│   └── mcp_server/          # MCP 交互日志
 ├── run_proxy.py             # 代理服务启动脚本
 ├── run_web.py               # Web 界面启动脚本
-├── run_mcp_sse.py           # MCP SSE 服务启动脚本
 ├── Makefile                 # 项目管理脚本
 ├── LICENSE                  # MIT 许可证
 ├── README.md                # 项目文档
@@ -283,8 +266,9 @@ mcp-proxy-logger/
 
 ### 环境变量
 - `TARGET_BASE_URL`: 目标 API 的基础 URL
-- `OPENAI_API_KEY`: OpenAI API 密钥
-- `OPENROUTER_API_KEY`: OpenRouter API 密钥
+- `PROXY_PORT`: 代理服务端口（默认：8000）
+- `WEB_PORT`: Web 界面端口（默认：8080）
+- `ADDITION_SERVER_PORT`: Addition MCP 服务器端口（默认：8002）
 
 ### 命令行参数
 - `--target-url`: 指定目标 API URL
@@ -316,4 +300,5 @@ mcp-proxy-logger/
 - [FastAPI](https://fastapi.tiangolo.com/) - 高性能 Web 框架
 - [httpx](https://www.python-httpx.org/) - 现代 HTTP 客户端
 - [MCP](https://modelcontextprotocol.io/) - Model Context Protocol
+- [FastMCP](https://github.com/jlowin/fastmcp) - 快速构建 MCP 服务器的框架
 - [uv](https://github.com/astral-sh/uv) - 快速的 Python 包管理器

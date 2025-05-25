@@ -47,7 +47,7 @@ logs/
 .proxy.pid
 .web.pid
 .mcp_sse.pid
+.addition_server.pid
 
 # uv
-.ruff_cache/
-uv.lock 
+.ruff_cache/ 

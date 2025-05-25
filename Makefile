@@ -3,7 +3,7 @@
 TARGET_URL ?= https://openrouter.ai/api/v1
 PROXY_PORT ?= 8000
 WEB_PORT ?= 8080
-MCP_SSE_PORT ?= 8001
+ADDITION_SERVER_PORT ?= 8002
 
 # 颜色定义
 GREEN := \033[0;32m
@@ -11,7 +11,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: help install run run-proxy run-web run-mcp-sse stop clean logs test
+.PHONY: help install run run-proxy run-web run-addition-server stop clean logs test
 
 # 默认目标：显示帮助
 help:
@@ -22,7 +22,7 @@ help:
 	@echo "  make run-openai   - 启动所有服务 (代理到 OpenAI)"
 	@echo "  make run-proxy    - 仅启动代理服务"
 	@echo "  make run-web      - 仅启动 Web 界面"
-	@echo "  make run-mcp-sse  - 仅启动 MCP SSE 服务器"
+	@echo "  make run-addition-server - 启动 Addition MCP 服务器"
 	@echo ""
 	@echo "$(YELLOW)管理命令:$(NC)"
 	@echo "  make stop         - 停止所有服务"
@@ -34,7 +34,7 @@ help:
 	@echo "  TARGET_URL        - 目标 API URL (默认: $(TARGET_URL))"
 	@echo "  PROXY_PORT        - 代理端口 (默认: $(PROXY_PORT))"
 	@echo "  WEB_PORT          - Web 端口 (默认: $(WEB_PORT))"
-	@echo "  MCP_SSE_PORT      - MCP SSE 端口 (默认: $(MCP_SSE_PORT))"
+	@echo "  ADDITION_SERVER_PORT - Addition Server 端口 (默认: $(ADDITION_SERVER_PORT))"
 
 # 安装依赖
 install:
@@ -48,7 +48,7 @@ run: stop
 	@echo "$(YELLOW)目标 API: $(TARGET_URL)$(NC)"
 	@echo "$(YELLOW)清理旧日志...$(NC)"
 	@rm -rf logs/
-	@mkdir -p logs/llm_proxy logs/mcp_weather
+	@mkdir -p logs/llm_proxy logs/mcp_server
 	@echo "$(GREEN)启动代理服务...$(NC)"
 	@TARGET_BASE_URL=$(TARGET_URL) uv run python run_proxy.py --port $(PROXY_PORT) > logs/proxy.log 2>&1 & \
 		echo $$! > .proxy.pid
@@ -57,9 +57,9 @@ run: stop
 	@uv run python run_web.py --port $(WEB_PORT) > logs/web.log 2>&1 & \
 		echo $$! > .web.pid
 	@sleep 2
-	@echo "$(GREEN)启动 MCP SSE 服务器...$(NC)"
-	@uv run python run_mcp_sse.py --port $(MCP_SSE_PORT) > logs/mcp_sse.log 2>&1 & \
-		echo $$! > .mcp_sse.pid
+	@echo "$(GREEN)启动 Addition MCP 服务器...$(NC)"
+	@uv run python src/mcp/addition_server.py --port $(ADDITION_SERVER_PORT) > logs/addition_server.log 2>&1 & \
+		echo $$! > .addition_server.pid
 	@sleep 2
 	@echo ""
 	@echo "$(GREEN)✅ 所有服务已启动!$(NC)"
@@ -67,7 +67,7 @@ run: stop
 	@echo "📌 访问地址:"
 	@echo "   - LLM 代理: http://localhost:$(PROXY_PORT)"
 	@echo "   - Web 界面: http://localhost:$(WEB_PORT)"
-	@echo "   - MCP SSE 服务器: http://localhost:$(MCP_SSE_PORT)"
+	@echo "   - Addition MCP 服务器: http://localhost:$(ADDITION_SERVER_PORT)"
 	@echo ""
 	@echo "💡 使用提示:"
 	@echo "   - 在客户端设置 API Base URL: http://localhost:$(PROXY_PORT)/v1"
@@ -92,15 +92,15 @@ run-web: stop-web
 	@mkdir -p logs
 	@uv run python run_web.py --port $(WEB_PORT)
 
-# 仅运行 MCP SSE 服务器
-run-mcp-sse: stop-mcp-sse
-	@echo "$(GREEN)启动 MCP SSE 服务器...$(NC)"
-	@echo "$(YELLOW)端口: $(MCP_SSE_PORT)$(NC)"
-	@mkdir -p logs/mcp_weather
-	@uv run python run_mcp_sse.py --port $(MCP_SSE_PORT)
+# 仅运行 Addition MCP 服务器
+run-addition-server: stop-addition-server
+	@echo "$(GREEN)启动 Addition MCP 服务器...$(NC)"
+	@echo "$(YELLOW)端口: $(ADDITION_SERVER_PORT)$(NC)"
+	@mkdir -p logs/mcp_server
+	@uv run python src/mcp/addition_server.py --port $(ADDITION_SERVER_PORT)
 
 # 停止所有服务
-stop: stop-proxy stop-web stop-mcp-sse
+stop: stop-proxy stop-web stop-addition-server
 	@echo "$(GREEN)✅ 所有服务已停止$(NC)"
 
 # 停止代理服务
@@ -121,20 +121,20 @@ stop-web:
 	fi
 	@pkill -f "run_web.py" 2>/dev/null || true
 
-# 停止 MCP SSE 服务
-stop-mcp-sse:
-	@if [ -f .mcp_sse.pid ]; then \
-		kill `cat .mcp_sse.pid` 2>/dev/null || true; \
-		rm -f .mcp_sse.pid; \
-		echo "$(YELLOW)MCP SSE 服务已停止$(NC)"; \
+# 停止 Addition MCP 服务
+stop-addition-server:
+	@if [ -f .addition_server.pid ]; then \
+		kill `cat .addition_server.pid` 2>/dev/null || true; \
+		rm -f .addition_server.pid; \
+		echo "$(YELLOW)Addition MCP 服务已停止$(NC)"; \
 	fi
-	@pkill -f "run_mcp_sse.py" 2>/dev/null || true
+	@pkill -f "src/mcp/addition_server.py" 2>/dev/null || true
 
 # 清理日志
 clean:
 	@echo "$(YELLOW)清理日志文件...$(NC)"
 	@rm -rf logs/
-	@rm -f .proxy.pid .web.pid .mcp_sse.pid
+	@rm -f .proxy.pid .web.pid .addition_server.pid
 	@echo "$(GREEN)✅ 清理完成$(NC)"
 
 # 查看日志
@@ -145,7 +145,7 @@ logs:
 		ls -la logs/llm_proxy/ 2>/dev/null | tail -5 || echo "  (空)"; \
 		echo ""; \
 		echo "$(YELLOW)MCP 服务日志:$(NC)"; \
-		ls -la logs/mcp_weather/ 2>/dev/null | tail -5 || echo "  (空)"; \
+		ls -la logs/mcp_server/ 2>/dev/null | tail -5 || echo "  (空)"; \
 		echo ""; \
 		echo "$(YELLOW)服务日志:$(NC)"; \
 		ls -la logs/*.log 2>/dev/null || echo "  (空)"; \
@@ -160,8 +160,8 @@ test:
 	@curl -s http://localhost:$(PROXY_PORT)/ > /dev/null && echo "$(GREEN)✅ 运行中$(NC)" || echo "$(RED)❌ 未运行$(NC)"
 	@echo -n "Web 界面: "
 	@curl -s http://localhost:$(WEB_PORT)/ > /dev/null && echo "$(GREEN)✅ 运行中$(NC)" || echo "$(RED)❌ 未运行$(NC)"
-	@echo -n "MCP SSE: "
-	@curl -s http://localhost:$(MCP_SSE_PORT)/health > /dev/null && echo "$(GREEN)✅ 运行中$(NC)" || echo "$(RED)❌ 未运行$(NC)"
+	@echo -n "Addition MCP: "
+	@curl -s http://localhost:$(ADDITION_SERVER_PORT)/health > /dev/null && echo "$(GREEN)✅ 运行中$(NC)" || echo "$(RED)❌ 未运行$(NC)"
 
 # 开发模式（前台运行，显示日志）
 dev:
@@ -169,7 +169,7 @@ dev:
 	@$(MAKE) stop
 	@echo "$(YELLOW)清理旧日志...$(NC)"
 	@rm -rf logs/
-	@mkdir -p logs/llm_proxy logs/mcp_weather
+	@mkdir -p logs/llm_proxy logs/mcp_server
 	@echo "$(YELLOW)启动代理服务 (端口: $(PROXY_PORT))$(NC)"
 	@TARGET_BASE_URL=$(TARGET_URL) uv run python run_proxy.py --port $(PROXY_PORT) &
 	@PROXY_PID=$$!; \
@@ -178,8 +178,8 @@ dev:
 	uv run python run_web.py --port $(WEB_PORT) & \
 	WEB_PID=$$!; \
 	sleep 2; \
-	echo "$(YELLOW)启动 MCP SSE 服务器 (端口: $(MCP_SSE_PORT))$(NC)"; \
-	uv run python run_mcp_sse.py --port $(MCP_SSE_PORT) & \
-	MCP_PID=$$!; \
-	trap "kill $$PROXY_PID $$WEB_PID $$MCP_PID 2>/dev/null; exit" INT; \
+	echo "$(YELLOW)启动 Addition MCP 服务器 (端口: $(ADDITION_SERVER_PORT))$(NC)"; \
+	uv run python src/mcp/addition_server.py --port $(ADDITION_SERVER_PORT) & \
+	ADDITION_PID=$$!; \
+	trap "kill $$PROXY_PID $$WEB_PID $$ADDITION_PID 2>/dev/null; exit" INT; \
 	wait 

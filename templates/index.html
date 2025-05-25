@@ -39,7 +39,20 @@
             <div class="modal-content">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2 id="modal-title">交互详情</h2>
-                <div id="modal-body">
+                
+                <!-- 切换视图的按钮 -->
+                <div class="view-toggle">
+                    <button id="parsed-view-btn" class="view-btn active" onclick="switchView('parsed')">智能解析</button>
+                    <button id="raw-view-btn" class="view-btn" onclick="switchView('raw')">原始数据</button>
+                </div>
+                
+                <!-- 解析视图 -->
+                <div id="parsed-view" class="view-content active">
+                    <div id="parsed-content"></div>
+                </div>
+                
+                <!-- 原始数据视图 -->
+                <div id="raw-view" class="view-content">
                     <div class="detail-section">
                         <h3>请求信息</h3>
                         <pre id="request-data"></pre>

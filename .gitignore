@@ -46,6 +46,7 @@ logs/
 # PID files
 .proxy.pid
 .web.pid
+.mcp_sse.pid
 
 # uv
 .ruff_cache/

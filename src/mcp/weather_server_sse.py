@@ -1,15 +1,18 @@
 """
-MCP 天气查询服务端
-实现 MCP 协议，提供天气查询功能并记录交互数据
+MCP 天气查询服务端 - SSE 模式
+实现 MCP 协议的 SSE 版本，提供天气查询功能并记录交互数据
 """
 import json
-import sys
 import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import uuid
 from pydantic import BaseModel
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 # MCP 协议相关的数据模型
 class MCPMessage(BaseModel):
@@ -32,12 +35,11 @@ class MCPInteractionLog(BaseModel):
     direction: str  # "request" or "response"
     message: Dict[str, Any]
 
-class WeatherMCPServer:
+class WeatherMCPServerSSE:
     def __init__(self, log_dir: Path = Path("logs/mcp_weather")):
         self.log_dir = log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.session_id = str(uuid.uuid4())
-        self.message_id_counter = 0
+        self.sessions = {}  # 存储会话信息
         
         # 定义工具
         self.tools = [
@@ -77,17 +79,31 @@ class WeatherMCPServer:
             )
         ]
     
-    async def log_interaction(self, direction: str, message: Dict[str, Any]):
+    def get_session_id(self, request: Request) -> str:
+        """获取或创建会话ID"""
+        session_id = request.headers.get("x-session-id")
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        if session_id not in self.sessions:
+            self.sessions[session_id] = {
+                "created_at": datetime.now(),
+                "message_count": 0
+            }
+        
+        return session_id
+    
+    async def log_interaction(self, session_id: str, direction: str, message: Dict[str, Any]):
         """记录交互数据"""
         log_entry = MCPInteractionLog(
-            session_id=self.session_id,
+            session_id=session_id,
             timestamp=datetime.now(),
             direction=direction,
             message=message
         )
         
         # 保存到日志文件
-        log_file = self.log_dir / f"{self.session_id}.jsonl"
+        log_file = self.log_dir / f"{session_id}.jsonl"
         with open(log_file, 'a', encoding='utf-8') as f:
             f.write(json.dumps(log_entry.model_dump(), ensure_ascii=False, default=str) + '\n')
     
@@ -103,7 +119,7 @@ class WeatherMCPServer:
                     "prompts": {}
                 },
                 "serverInfo": {
-                    "name": "weather-mcp-server",
+                    "name": "weather-mcp-server-sse",
                     "version": "1.0.0"
                 }
             }
@@ -210,64 +226,140 @@ class WeatherMCPServer:
                     "message": f"Method not found: {method}"
                 }
             )
-    
-    async def run_stdio(self):
-        """通过 stdio 运行服务器"""
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        
-        # 在 Windows 上使用不同的方法
-        if sys.platform == 'win32':
-            # Windows 特定的处理
-            loop = asyncio.get_event_loop()
-            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-        else:
-            # Unix/Linux/Mac
-            await asyncio.get_event_loop().connect_read_pipe(
-                lambda: protocol, sys.stdin)
-        
-        while True:
-            try:
-                # 读取一行
-                line = await reader.readline()
-                if not line:
-                    break
-                
-                # 解析消息
-                message_data = json.loads(line.decode('utf-8').strip())
-                message = MCPMessage(**message_data)
-                
-                # 记录请求
-                await self.log_interaction("request", message_data)
-                
-                # 处理消息
-                response = await self.handle_message(message)
-                
-                # 记录响应
-                response_data = response.model_dump(exclude_none=True)
-                await self.log_interaction("response", response_data)
-                
-                # 发送响应
-                sys.stdout.write(json.dumps(response_data) + '\n')
-                sys.stdout.flush()
-                
-            except Exception as e:
-                # 错误响应
-                error_response = MCPMessage(
-                    jsonrpc="2.0",
-                    id=None,
-                    error={
-                        "code": -32700,
-                        "message": f"Parse error: {str(e)}"
-                    }
-                )
-                sys.stdout.write(json.dumps(error_response.model_dump()) + '\n')
-                sys.stdout.flush()
 
-async def main():
-    """主函数"""
-    server = WeatherMCPServer()
-    await server.run_stdio()
+# 创建 FastAPI 应用
+app = FastAPI(title="Weather MCP Server SSE", version="1.0.0")
+
+# 添加 CORS 中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 创建服务器实例
+server = WeatherMCPServerSSE()
+
+@app.get("/")
+async def root():
+    """根路径，返回服务器信息"""
+    return {
+        "name": "Weather MCP Server SSE",
+        "version": "1.0.0",
+        "protocol": "MCP over SSE",
+        "endpoints": {
+            "sse": "/sse",
+            "message": "/message"
+        }
+    }
+
+@app.get("/sse")
+async def sse_endpoint(request: Request):
+    """SSE 端点，用于建立 SSE 连接"""
+    session_id = server.get_session_id(request)
+    
+    async def event_generator():
+        # 发送连接建立事件
+        yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n"
+        
+        # 保持连接活跃
+        try:
+            while True:
+                # 发送心跳
+                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
+                await asyncio.sleep(30)  # 每30秒发送一次心跳
+        except asyncio.CancelledError:
+            # 连接被取消
+            yield f"data: {json.dumps({'type': 'disconnected'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Session-ID": session_id
+        }
+    )
+
+@app.post("/message")
+async def handle_message_endpoint(request: Request):
+    """处理 MCP 消息的端点"""
+    session_id = server.get_session_id(request)
+    
+    try:
+        # 读取请求体
+        body = await request.body()
+        message_data = json.loads(body.decode('utf-8'))
+        
+        # 解析消息
+        message = MCPMessage(**message_data)
+        
+        # 记录请求
+        await server.log_interaction(session_id, "request", message_data)
+        
+        # 处理消息
+        response = await server.handle_message(message)
+        
+        # 记录响应
+        response_data = response.model_dump(exclude_none=True)
+        await server.log_interaction(session_id, "response", response_data)
+        
+        # 返回响应
+        return JSONResponse(content=response_data)
+        
+    except Exception as e:
+        # 错误响应
+        error_response = {
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {
+                "code": -32700,
+                "message": f"Parse error: {str(e)}"
+            }
+        }
+        
+        # 记录错误
+        await server.log_interaction(session_id, "error", error_response)
+        
+        return JSONResponse(content=error_response, status_code=400)
+
+@app.get("/sessions")
+async def list_sessions():
+    """列出所有会话"""
+    return {
+        "sessions": [
+            {
+                "session_id": sid,
+                "created_at": info["created_at"].isoformat(),
+                "message_count": info["message_count"]
+            }
+            for sid, info in server.sessions.items()
+        ]
+    }
+
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Weather MCP Server SSE")
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=8001, help="Port to bind to")
+    parser.add_argument("--log-level", default="info", help="Log level")
+    
+    args = parser.parse_args()
+    
+    print(f"启动 Weather MCP Server SSE 在 http://{args.host}:{args.port}", flush=True)
+    
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level=args.log_level
+    ) 

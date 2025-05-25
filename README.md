@@ -21,8 +21,8 @@
 ### 2. MCP 协议服务
 - 实现标准 MCP 协议的天气查询服务
 - 提供 `get_weather` 和 `get_forecast` 两个示例工具
-- 通过 stdio 通信，记录所有 JSON-RPC 消息
-- 可集成到支持 MCP 的客户端（如 Claude Desktop）
+- 使用 **SSE 模式**：通过 HTTP/SSE 通信，提供 REST API 接口
+- 记录所有 JSON-RPC 消息交互
 
 ### 3. Web 可视化界面
 - 实时展示所有交互日志
@@ -90,6 +90,9 @@ make run-proxy
 # 仅启动 Web 界面
 make run-web
 
+# 仅启动 MCP SSE 服务器
+make run-mcp-sse
+
 # 开发模式（前台运行，显示日志）
 make dev
 ```
@@ -107,23 +110,35 @@ make run
 
 ### MCP 服务
 
+#### SSE 模式（HTTP API）
+
 ```bash
-# 直接运行（用于测试）
-uv run python src/mcp/weather_server.py
+# 启动 SSE 模式服务器
+make run-mcp-sse
+
+# 或直接运行
+uv run python run_mcp_sse.py --port 8001
 ```
 
-在 Claude Desktop 或其他支持 MCP 的客户端中配置：
+SSE 模式提供以下 HTTP 端点：
+- `GET /` - 服务器信息
+- `GET /health` - 健康检查
+- `GET /sse` - SSE 连接端点
+- `POST /message` - 发送 MCP 消息
+- `GET /sessions` - 查看所有会话
 
-```json
-{
-  "mcpServers": {
-    "weather": {
-      "command": "uv",
-      "args": ["run", "python", "/path/to/mcp-proxy-logger/src/mcp/weather_server.py"],
-      "env": {}
-    }
-  }
-}
+测试 SSE 模式：
+```bash
+# 使用 curl 测试服务器信息
+curl http://localhost:8001/
+
+# 测试健康检查
+curl http://localhost:8001/health
+
+# 发送 MCP 消息
+curl -X POST http://localhost:8001/message \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
 ```
 
 ## 📖 使用指南
@@ -214,7 +229,7 @@ mcp-proxy-logger/
 │   ├── proxy/
 │   │   └── llm_proxy.py      # LLM API 代理实现
 │   ├── mcp/
-│   │   └── weather_server.py  # MCP 天气服务实现
+│   │   └── weather_server_sse.py # MCP 天气服务实现 (SSE 模式)
 │   └── web/
 │       └── app.py            # Web 界面后端
 ├── templates/
@@ -229,6 +244,7 @@ mcp-proxy-logger/
 │   └── mcp_weather/         # MCP 交互日志
 ├── run_proxy.py             # 代理服务启动脚本
 ├── run_web.py               # Web 界面启动脚本
+├── run_mcp_sse.py           # MCP SSE 服务启动脚本
 ├── Makefile                 # 项目管理脚本
 ├── LICENSE                  # MIT 许可证
 ├── README.md                # 项目文档

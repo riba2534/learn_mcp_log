@@ -49,7 +49,7 @@ run: stop
 		echo $$! > .proxy.pid
 	@sleep 2
 	@echo "$(GREEN)启动 Web 界面...$(NC)"
-	@uv run python run_web.py > logs/web.log 2>&1 & \
+	@WEB_PORT=$(WEB_PORT) uv run python run_web.py --port $(WEB_PORT) > logs/web.log 2>&1 & \
 		echo $$! > .web.pid
 	@sleep 2
 	@echo ""
@@ -80,7 +80,7 @@ run-proxy: stop-proxy
 run-web: stop-web
 	@echo "$(GREEN)启动 Web 界面...$(NC)"
 	@mkdir -p logs
-	@uv run python run_web.py
+	@WEB_PORT=$(WEB_PORT) uv run python run_web.py --port $(WEB_PORT)
 
 # 停止所有服务
 stop: stop-proxy stop-web
@@ -140,12 +140,12 @@ dev:
 	@echo "$(GREEN)开发模式启动（Ctrl+C 停止）$(NC)"
 	@$(MAKE) stop
 	@mkdir -p logs/llm_proxy logs/mcp_weather
-	@echo "$(YELLOW)启动代理服务 (PID: $$$$)$(NC)"
+	@echo "$(YELLOW)启动代理服务 (端口: $(PROXY_PORT))$(NC)"
 	@TARGET_BASE_URL=$(TARGET_URL) uv run python run_proxy.py --port $(PROXY_PORT) &
 	@PROXY_PID=$$!; \
 	sleep 2; \
-	echo "$(YELLOW)启动 Web 界面 (PID: $$$$)$(NC)"; \
-	uv run python run_web.py & \
+	echo "$(YELLOW)启动 Web 界面 (端口: $(WEB_PORT))$(NC)"; \
+	WEB_PORT=$(WEB_PORT) uv run python run_web.py --port $(WEB_PORT) & \
 	WEB_PID=$$!; \
 	trap "kill $$PROXY_PID $$WEB_PID 2>/dev/null; exit" INT; \
 	wait 
